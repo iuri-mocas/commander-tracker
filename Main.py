@@ -19,58 +19,6 @@ def normalize_user(name: str):
     return known_names.get(clean, name.strip().title())
 
 
-st.markdown("""
-<style>
-[data-testid="stSidebar"] {
-    display: none;
-}
-[data-testid="collapsedControl"] {
-    display: none;
-}
-
-.home-title {
-    text-align: center;
-    font-size: 4rem;
-    font-weight: 900;
-    color: #F6E8C7;
-    font-family: Georgia, serif;
-    text-shadow: 0 0 25px rgba(0,0,0,.9);
-    margin-top: 4rem;
-}
-
-.home-subtitle {
-    text-align: center;
-    color: #D4AF37;
-    font-size: 1.3rem;
-    margin-bottom: 3rem;
-}
-
-div.stButton > button {
-    height: 155px;
-    border-radius: 24px !important;
-    border: 1px solid rgba(212,175,55,.9) !important;
-    background: linear-gradient(145deg, rgba(16,35,52,.95), rgba(8,12,22,.98)) !important;
-    color: #F6E8C7 !important;
-    font-size: 1.25rem !important;
-    font-weight: 900 !important;
-    font-family: Georgia, serif !important;
-    box-shadow: 0 0 24px rgba(0,0,0,.8);
-    transition: all .2s ease-in-out;
-}
-
-div.stButton > button:hover {
-    transform: translateY(-6px) scale(1.03);
-    background: linear-gradient(145deg, rgba(90,65,22,.98), rgba(12,18,32,.98)) !important;
-    border: 2px solid gold !important;
-}
-
-.login-button button {
-    height: 60px !important;
-}
-</style>
-""", unsafe_allow_html=True)
-
-
 if "user" not in st.session_state:
     st.markdown("""
     <div class="home-title">🎮 Commander Tracker</div>
