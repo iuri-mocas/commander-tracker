@@ -18,6 +18,16 @@ def normalize_user(name: str):
     clean = name.strip().lower()
     return known_names.get(clean, name.strip().title())
 
+st.markdown("""
+<style>
+[data-testid="stSidebar"] {
+    display: none;
+}
+[data-testid="collapsedControl"] {
+    display: none;
+}
+</style>
+""", unsafe_allow_html=True)
 
 if "user" not in st.session_state:
     st.markdown("""

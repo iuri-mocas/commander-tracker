@@ -48,13 +48,12 @@ def apply_theme():
         background-attachment: fixed;
     }}
 
-    [data-testid="stSidebar"] {{
-        display: none;
-    }}
+    [data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #0b1d2a 0%, #0f2f3a 50%, #1a3d45 100%);
+    border-right: 1px solid rgba(255,180,80,0.4);
+    }
 
-    [data-testid="collapsedControl"] {{
-        display: none;
-    }}
+    [
 
     h1, h2, h3, p, label {{
         color: #F6E8C7 !important;
