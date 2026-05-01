@@ -2,6 +2,13 @@ import streamlit as st
 from config import supabase, init_page
 from datetime import datetime
 
+st.set_page_config(
+    page_title="Commander Tracker",
+    page_icon="🎮",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
 init_page()
 
 st.title("🎮 Record Game")

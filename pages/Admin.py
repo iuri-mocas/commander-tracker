@@ -2,6 +2,13 @@ import streamlit as st
 from config import supabase, init_page, is_admin
 import pandas as pd
 
+st.set_page_config(
+    page_title="Commander Tracker",
+    page_icon="🎮",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
 init_page()
 
 if not is_admin():
