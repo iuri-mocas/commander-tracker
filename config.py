@@ -48,12 +48,16 @@ def apply_theme():
         background-attachment: fixed;
     }}
 
-    [data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #0b1d2a 0%, #0f2f3a 50%, #1a3d45 100%);
-    border-right: 1px solid rgba(255,180,80,0.4);
-    }
+    [data-testid="stSidebar"] {{
+        background: linear-gradient(180deg, #0b1d2a 0%, #0f2f3a 50%, #1a3d45 100%);
+        border-right: 1px solid rgba(255,180,80,0.4);
+        box-shadow: inset 0 0 30px rgba(255,140,60,0.15);
+    }}
 
-    [
+    [data-testid="stSidebar"] * {{
+        color: #F6E8C7 !important;
+        font-family: Georgia, serif;
+    }}
 
     h1, h2, h3, p, label {{
         color: #F6E8C7 !important;
@@ -78,18 +82,15 @@ def apply_theme():
     }}
 
     div.stButton > button {{
-        height: 155px;
-        border-radius: 24px !important;
+        border-radius: 18px !important;
         border: 1px solid rgba(212,175,55,.9) !important;
         background: linear-gradient(145deg, rgba(16,35,52,.95), rgba(8,12,22,.98)) !important;
         color: #F6E8C7 !important;
-        font-size: 1.25rem !important;
         font-weight: 900 !important;
         font-family: Georgia, serif !important;
     }}
 
     div.stButton > button:hover {{
-        transform: translateY(-6px) scale(1.03);
         background: linear-gradient(145deg, rgba(90,65,22,.98), rgba(12,18,32,.98)) !important;
         border: 2px solid gold !important;
     }}
@@ -105,6 +106,7 @@ def init_page():
 
     with st.sidebar:
         st.markdown("---")
+
         st.markdown(f"""
         <div style="text-align:center; padding:1rem;">
             <div style="color:#D4AF37;">Planeswalker</div>
