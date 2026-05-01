@@ -47,6 +47,16 @@ def apply_theme():
         background-position: center;
         background-attachment: fixed;
     }}
+    
+    [data-testid="collapsedControl"] span {
+    display: none !important;
+    }
+    
+    [data-testid="collapsedControl"]::after {
+        content: "«";
+        font-size: 20px;
+        color: #F6E8C7;
+    }
 
     [data-testid="stSidebar"] {{
         background: linear-gradient(180deg, #0b1d2a 0%, #0f2f3a 50%, #1a3d45 100%);
