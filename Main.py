@@ -5,7 +5,7 @@ st.set_page_config(page_title="Commander Tracker", layout="wide")
 
 apply_theme()
 
-# ---------- NORMALIZE USER ----------
+
 def normalize_user(name: str):
     known_names = {
         "iuri": "Iuri",
@@ -14,11 +14,11 @@ def normalize_user(name: str):
         "ze": "Zé",
         "zé": "Zé",
     }
+
     clean = name.strip().lower()
     return known_names.get(clean, name.strip().title())
 
 
-# ---------- ALWAYS HIDE SIDEBAR ON MAIN PAGE ----------
 st.markdown("""
 <style>
 [data-testid="stSidebar"] {
@@ -64,18 +64,13 @@ div.stButton > button:hover {
     border: 2px solid gold !important;
 }
 
-.logout-small button {
-    height: 46px !important;
-    border-radius: 14px !important;
-    background: linear-gradient(145deg, #0b1d2a, #1a3d45) !important;
-    border: 1px solid rgba(212,175,55,.65) !important;
-    font-size: .95rem !important;
+.login-button button {
+    height: 60px !important;
 }
 </style>
 """, unsafe_allow_html=True)
 
 
-# ---------- LOGIN ----------
 if "user" not in st.session_state:
     st.markdown("""
     <div class="home-title">🎮 Commander Tracker</div>
@@ -91,7 +86,11 @@ if "user" not in st.session_state:
                 placeholder="Planeswalker name",
                 label_visibility="collapsed"
             )
-            submitted = st.form_submit_button("Enter", use_container_width=True)
+
+            submitted = st.form_submit_button(
+                "Enter",
+                use_container_width=True
+            )
 
             if submitted and name.strip():
                 st.session_state["user"] = normalize_user(name)
@@ -100,7 +99,6 @@ if "user" not in st.session_state:
     st.stop()
 
 
-# ---------- HOME ----------
 user = st.session_state["user"]
 
 st.markdown(f"""
@@ -116,8 +114,13 @@ cards = [
     ("🏆\nELO", "pages/Elo.py"),
 ]
 
-if user == "Iuri":
-    cards.append(("👑\nAdmin", "pages/Admin.py"))
+# Local admin only, controlled by config.py / secrets
+try:
+    from config import is_admin
+    if is_admin():
+        cards.append(("👑\nAdmin", "pages/Admin.py"))
+except Exception:
+    pass
 
 cols = st.columns(3, gap="large")
 
@@ -125,13 +128,3 @@ for i, (label, path) in enumerate(cards):
     with cols[i % 3]:
         if st.button(label, key=path, use_container_width=True):
             st.switch_page(path)
-
-st.write("")
-
-_, mid, _ = st.columns([2.3, 1, 2.3])
-with mid:
-    st.markdown('<div class="logout-small">', unsafe_allow_html=True)
-    if st.button("🚪 Logout", use_container_width=True):
-        st.session_state.clear()
-        st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)

@@ -8,75 +8,68 @@ SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+
 def is_admin():
     local_admin = st.secrets.get("LOCAL_ADMIN", False)
     admin_name = st.secrets.get("ADMIN_NAME", "")
-
     return local_admin and st.session_state.get("user") == admin_name
 
-def link_existing_guest_games(player_name, player_id):
-    supabase.table("game_players").update({
-        "player_id": player_id
-    }).eq("player_name", player_name).is_("player_id", "null").execute()
-
-    supabase.table("games").update({
-        "winner_id": player_id
-    }).eq("winner_name", player_name).is_("winner_id", "null").execute()
-
-    supabase.table("games").update({
-        "starting_player_id": player_id
-    }).eq("starting_player_name", player_name).is_("starting_player_id", "null").execute()
 
 def check_login():
     if "user" not in st.session_state:
         st.switch_page("Main.py")
 
-def is_admin():
-    return st.session_state["user"] in ADMIN_USERS
 
 def img_to_base64(path):
     if not os.path.exists(path):
         return None
+
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
+
 
 def apply_theme():
     bg = img_to_base64("assets/mtg_bg.jpg")
 
-    css = f"""
+    css = """
     <style>
+    h1, h2, h3, p, label {
+        color: #F6E8C7 !important;
+        font-family: Georgia, serif;
+    }
 
-    /* MAIN BACKGROUND */
-    .stApp {{
-        background-image:
-            linear-gradient(rgba(0,0,0,.65), rgba(0,0,0,.85)),
-            url("data:image/jpg;base64,{bg}");
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #0b1d2a 0%, #0f2f3a 50%, #1a3d45 100%);
+        border-right: 1px solid rgba(255,180,80,0.4);
+        box-shadow: inset 0 0 30px rgba(255,140,60,0.15);
+    }
+
+    [data-testid="stSidebar"] * {
+        color: #F6E8C7 !important;
+        font-family: Georgia, serif;
+    }
+
+    .stApp {
         background-size: cover;
         background-position: center;
         background-attachment: fixed;
-    }}
-
-    /* SIDEBAR */
-    [data-testid="stSidebar"] {{
-        background: linear-gradient(
-            180deg,
-            #0b1d2a 0%,
-            #0f2f3a 50%,
-            #1a3d45 100%
-        );
-        border-right: 1px solid rgba(255,180,80,0.4);
-    }}
-
-    /* TEXT */
-    h1, h2, h3, p, label {{
-        color: #F6E8C7 !important;
-        font-family: Georgia, serif;
-    }}
-
+    }
     </style>
     """
 
+    if bg:
+        css += f"""
+        <style>
+        .stApp {{
+            background-image:
+                linear-gradient(rgba(0,0,0,.65), rgba(0,0,0,.85)),
+                url("data:image/jpg;base64,{bg}");
+        }}
+        </style>
+        """
+
     st.markdown(css, unsafe_allow_html=True)
+
 
 def init_page():
     check_login()
