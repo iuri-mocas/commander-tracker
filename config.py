@@ -32,13 +32,13 @@ def apply_theme():
 
     background_css = ""
     if bg:
-        background_css = f"""
+        background_css = f'''
         background-image:
             linear-gradient(rgba(0,0,0,.65), rgba(0,0,0,.85)),
             url("data:image/jpg;base64,{bg}");
-        """
+        '''
 
-    css = f"""
+    css = f'''
     <style>
     .stApp {{
         {background_css}
@@ -59,9 +59,9 @@ def apply_theme():
     }}
 
     [data-testid="collapsedControl"],
-    [data-testid="stSidebarCollapseButton"] {
+    [data-testid="stSidebarCollapseButton"] {{
         color: #F6E8C7 !important;
-    }
+    }}
 
     h1, h2, h3, p, label {{
         color: #F6E8C7 !important;
@@ -99,7 +99,7 @@ def apply_theme():
         border: 2px solid gold !important;
     }}
     </style>
-    """
+    '''
 
     st.markdown(css, unsafe_allow_html=True)
 
