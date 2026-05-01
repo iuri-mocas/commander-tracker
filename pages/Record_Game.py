@@ -1,3 +1,9 @@
+import streamlit as st
+from config import supabase, init_page
+from datetime import datetime
+
+init_page()
+
 # ---------- MY RECORDED / PLAYED GAMES ----------
 st.markdown("---")
 st.subheader("📜 My Games")
