@@ -23,7 +23,6 @@ def check_login():
 def img_to_base64(path):
     if not os.path.exists(path):
         return None
-
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
 
@@ -47,16 +46,6 @@ def apply_theme():
         background-position: center;
         background-attachment: fixed;
     }}
-    
-    [data-testid="collapsedControl"] span {
-    display: none !important;
-    }
-    
-    [data-testid="collapsedControl"]::after {
-        content: "«";
-        font-size: 20px;
-        color: #F6E8C7;
-    }
 
     [data-testid="stSidebar"] {{
         background: linear-gradient(180deg, #0b1d2a 0%, #0f2f3a 50%, #1a3d45 100%);
@@ -67,6 +56,17 @@ def apply_theme():
     [data-testid="stSidebar"] * {{
         color: #F6E8C7 !important;
         font-family: Georgia, serif;
+    }}
+
+    [data-testid="collapsedControl"] span {{
+        display: none !important;
+    }}
+
+    [data-testid="collapsedControl"]::after {{
+        content: "«";
+        font-size: 22px;
+        color: #F6E8C7;
+        font-weight: bold;
     }}
 
     h1, h2, h3, p, label {{
