@@ -58,27 +58,10 @@ def apply_theme():
         font-family: Georgia, serif;
     }}
 
-    [data-testid="collapsedControl"] span {{
-        display: none !important;
-    }}
-
-    [data-testid="collapsedControl"]::after {{
-        content: "«";
-        font-size: 22px;
-        color: #F6E8C7;
-        font-weight: bold;
-    }}
-
-    [data-testid="stSidebarCollapseButton"] span {{
-        display: none !important;
-    }}
-
-    [data-testid="stSidebarCollapseButton"]::after {{
-        content: "«";
-        font-size: 22px;
-        color: #F6E8C7;
-        font-weight: bold;
-    }}
+    [data-testid="collapsedControl"],
+    [data-testid="stSidebarCollapseButton"] {
+        color: #F6E8C7 !important;
+    }
 
     h1, h2, h3, p, label {{
         color: #F6E8C7 !important;
