@@ -57,6 +57,17 @@ def apply_theme():
         color: #F6E8C7 !important;
         font-family: Georgia, serif;
     }}
+    
+    [data-testid="stSidebarCollapseButton"] span {
+    display: none !important;
+    }
+    
+    [data-testid="stSidebarCollapseButton"]::after {
+        content: "«";
+        font-size: 22px;
+        color: #F6E8C7;
+        font-weight: bold;
+    }
 
     [data-testid="collapsedControl"] span {{
         display: none !important;
