@@ -40,13 +40,6 @@ def apply_theme():
 
     [data-testid="stSidebar"] {
         background: linear-gradient(180deg, #0b1d2a 0%, #0f2f3a 50%, #1a3d45 100%);
-        border-right: 1px solid rgba(255,180,80,0.4);
-        box-shadow: inset 0 0 30px rgba(255,140,60,0.15);
-    }
-
-    [data-testid="stSidebar"] * {
-        color: #F6E8C7 !important;
-        font-family: Georgia, serif;
     }
 
     .stApp {
@@ -69,7 +62,6 @@ def apply_theme():
         """
 
     st.markdown(css, unsafe_allow_html=True)
-
 
 def init_page():
     check_login()
