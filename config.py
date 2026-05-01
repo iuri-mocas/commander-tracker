@@ -31,24 +31,37 @@ def img_to_base64(path):
 def apply_theme():
     bg = img_to_base64("assets/mtg_bg.jpg")
 
-    css = """
-    <style>
+    background_css = ""
+    if bg:
+        background_css = f"""
+        background-image:
+            linear-gradient(rgba(0,0,0,.65), rgba(0,0,0,.85)),
+            url("data:image/jpg;base64,{bg}");
+        """
 
-    h1, h2, h3, p, label {
+    css = f"""
+    <style>
+    .stApp {{
+        {background_css}
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+    }}
+
+    [data-testid="stSidebar"] {{
+        display: none;
+    }}
+
+    [data-testid="collapsedControl"] {{
+        display: none;
+    }}
+
+    h1, h2, h3, p, label {{
         color: #F6E8C7 !important;
         font-family: Georgia, serif;
-    }
+    }}
 
-    [data-testid="stSidebar"] {
-        display: none;
-        background: linear-gradient(180deg, #0b1d2a 0%, #0f2f3a 50%, #1a3d45 100%);
-    }
-
-    [data-testid="collapsedControl"] {
-        display: none;
-    }
-
-    .home-title {
+    .home-title {{
         text-align: center;
         font-size: 4rem;
         font-weight: 900;
@@ -56,16 +69,16 @@ def apply_theme():
         font-family: Georgia, serif;
         text-shadow: 0 0 25px rgba(0,0,0,.9);
         margin-top: 4rem;
-    }
+    }}
 
-    .home-subtitle {
+    .home-subtitle {{
         text-align: center;
         color: #D4AF37;
         font-size: 1.3rem;
         margin-bottom: 3rem;
-    }
+    }}
 
-    div.stButton > button {
+    div.stButton > button {{
         height: 155px;
         border-radius: 24px !important;
         border: 1px solid rgba(212,175,55,.9) !important;
@@ -74,41 +87,18 @@ def apply_theme():
         font-size: 1.25rem !important;
         font-weight: 900 !important;
         font-family: Georgia, serif !important;
-        box-shadow: 0 0 24px rgba(0,0,0,.8);
-        transition: all .2s ease-in-out;
-    }
+    }}
 
-    div.stButton > button:hover {
+    div.stButton > button:hover {{
         transform: translateY(-6px) scale(1.03);
         background: linear-gradient(145deg, rgba(90,65,22,.98), rgba(12,18,32,.98)) !important;
         border: 2px solid gold !important;
-    }
-
-    .login-button button {
-        height: 60px !important;
-    }
-
-    .stApp {
-        background-size: cover;
-        background-position: center;
-        background-attachment: fixed;
-    }
-
+    }}
     </style>
     """
 
-    if bg:
-        css += f"""
-        <style>
-        .stApp {{
-            background-image:
-                linear-gradient(rgba(0,0,0,.65), rgba(0,0,0,.85)),
-                url("data:image/jpg;base64,{bg}");
-        }}
-        </style>
-        """
-
     st.markdown(css, unsafe_allow_html=True)
+
 
 def init_page():
     check_login()
@@ -116,10 +106,9 @@ def init_page():
 
     with st.sidebar:
         st.markdown("---")
-
         st.markdown(f"""
         <div style="text-align:center; padding:1rem;">
-            <div style="color:#D4AF37; font-size:1rem;">Planeswalker</div>
+            <div style="color:#D4AF37;">Planeswalker</div>
             <div style="font-size:1.6rem; font-weight:900; color:#F6E8C7;">
                 {st.session_state["user"]}
             </div>
