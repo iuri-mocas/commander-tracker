@@ -77,18 +77,14 @@ if selected_players:
             player_decks[player_name] = None
 
     winner_name = st.selectbox("Winner", selected_players)
-    starter_name = st.selectbox("Starting Player", selected_players)
 
     if st.button("💾 Save Game"):
         winner_id = name_to_id.get(winner_name)
-        starter_id = name_to_id.get(starter_name)
 
         game = supabase.table("games").insert({
             "date": str(game_date),
             "winner": winner_id,
-            "winner_name": winner_name,
-            "starting_player": starter_id,
-            "starting_player_name": starter_name
+            "winner_name": winner_name
         }).execute()
 
         game_id = game.data[0]["id"]
@@ -151,11 +147,9 @@ else:
             names.append(f"{p.get('player_name')} — {deck_name}{loan}")
 
         winner = game.get("winner_name", "Unknown")
-        starter = game.get("starting_player_name", "Unknown")
 
         with st.expander(f"Game #{game_id} — {game.get('date')}"):
             st.write(f"🏆 Winner: **{winner}**")
-            st.write(f"🚀 Starting player: **{starter}**")
             st.write("Players:")
             for n in names:
                 st.write(f"- {n}")

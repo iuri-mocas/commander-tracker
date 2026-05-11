@@ -221,6 +221,7 @@ with tabs[0]:
             st.rerun()
 
 # ---------- DECK LIST ----------
+# ---------- DECK LIST ----------
 with tabs[1]:
     st.subheader("Deck List")
 
@@ -251,6 +252,30 @@ with tabs[1]:
 
             selected_deck = df_show[df_show["id"] == selected_deck_id].iloc[0]
 
+            st.markdown("### Update Archidekt Link")
+
+            new_archidekt_url = st.text_input(
+                "New Archidekt URL",
+                value=selected_deck.get("archidekt_url", ""),
+                key=f"update_url_{selected_deck_id}"
+            )
+
+            if st.button("Update Deck Link"):
+                if not new_archidekt_url.strip():
+                    st.warning("Please enter a valid Archidekt URL.")
+                else:
+                    supabase.table("Deck").update({
+                        "archidekt_url": new_archidekt_url.strip()
+                    }).eq("id", int(selected_deck_id)).execute()
+
+                    imported = import_deck_cards(
+                        int(selected_deck_id),
+                        new_archidekt_url.strip()
+                    )
+
+                    st.success(f"Deck link updated. Imported {imported} cards.")
+                    st.rerun()
+
             col1, col2 = st.columns(2)
 
             with col1:
@@ -269,15 +294,12 @@ with tabs[1]:
                     if not confirm_delete:
                         st.warning("Check confirmation first.")
                     else:
-                        # Delete deck cards first
                         supabase.table("deck_cards").delete().eq("deck_id", int(selected_deck_id)).execute()
 
-                        # Remove deck reference from games
                         supabase.table("game_players").update({
                             "deck": None
                         }).eq("deck", int(selected_deck_id)).execute()
 
-                        # Delete deck
                         supabase.table("Deck").delete().eq("id", int(selected_deck_id)).execute()
 
                         st.warning("Deck deleted.")

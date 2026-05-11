@@ -1,10 +1,22 @@
 import streamlit as st
 from config import apply_theme
+from datetime import datetime, timedelta
 
 st.set_page_config(page_title="Commander Tracker", layout="wide")
 
 apply_theme()
 
+# ---------- KEEP SUPABASE ACTIVE ----------
+if "last_ping" not in st.session_state:
+    st.session_state["last_ping"] = datetime.now()
+
+if datetime.now() - st.session_state["last_ping"] > timedelta(days=6):
+    try:
+        from config import supabase
+        supabase.table("players").select("id").limit(1).execute()
+        st.session_state["last_ping"] = datetime.now()
+    except Exception:
+        pass
 
 def normalize_user(name: str):
     known_names = {
