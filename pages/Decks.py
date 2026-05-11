@@ -19,6 +19,7 @@ st.title("🎴 Decks")
 user = st.session_state["user"]
 admin = is_admin()
 
+
 # ---------- HELPERS ----------
 def get_archidekt_id_from_url(url):
     match = re.search(r"archidekt\.com/decks/(\d+)", url)
@@ -28,6 +29,79 @@ def get_archidekt_id_from_url(url):
 def get_moxfield_id_from_url(url):
     match = re.search(r"moxfield\.com/decks/([^/?#]+)", url)
     return match.group(1) if match else None
+
+
+def get_card_image(data):
+    if "image_uris" in data:
+        return data["image_uris"].get("normal")
+
+    if "card_faces" in data and data["card_faces"]:
+        return data["card_faces"][0].get("image_uris", {}).get("normal")
+
+    return None
+
+
+@st.cache_data(ttl=3600)
+def search_scryfall_card_names(card_name):
+    r = requests.get(
+        "https://api.scryfall.com/cards/search",
+        params={
+            "q": card_name,
+            "unique": "cards",
+            "order": "name"
+        },
+        timeout=10
+    )
+
+    if r.status_code != 200:
+        return []
+
+    results = r.json().get("data", [])
+
+    names = sorted(set(card.get("name") for card in results if card.get("name")))
+
+    return names
+
+
+@st.cache_data(ttl=3600)
+def search_scryfall_printings(card_name):
+    r = requests.get(
+        "https://api.scryfall.com/cards/search",
+        params={
+            "q": f'!"{card_name}"',
+            "unique": "prints",
+            "order": "released"
+        },
+        timeout=10
+    )
+
+    if r.status_code != 200:
+        return []
+
+    return r.json().get("data", [])
+
+
+def card_data_from_scryfall(data):
+    return {
+        "scryfall_id": data.get("id"),
+        "name": data.get("name"),
+        "image_url": get_card_image(data),
+        "mana_cost": data.get("mana_cost"),
+        "type_line": data.get("type_line"),
+        "colors": ",".join(data.get("colors", []))
+    }
+
+
+def get_or_create_card_from_data(data):
+    scryfall_id = data.get("id")
+
+    existing = supabase.table("cards").select("*").eq("scryfall_id", scryfall_id).execute().data
+
+    if existing:
+        return existing[0]["id"]
+
+    inserted = supabase.table("cards").insert(card_data_from_scryfall(data)).execute().data
+    return inserted[0]["id"]
 
 
 def get_scryfall_card(card_name):
@@ -42,20 +116,7 @@ def get_scryfall_card(card_name):
 
     data = r.json()
 
-    image_url = None
-    if "image_uris" in data:
-        image_url = data["image_uris"].get("normal")
-    elif "card_faces" in data:
-        image_url = data["card_faces"][0]["image_uris"].get("normal")
-
-    return {
-        "scryfall_id": data.get("id"),
-        "name": data.get("name"),
-        "image_url": image_url,
-        "mana_cost": data.get("mana_cost"),
-        "type_line": data.get("type_line"),
-        "colors": ",".join(data.get("colors", []))
-    }
+    return card_data_from_scryfall(data)
 
 
 def get_or_create_card(card_name):
@@ -65,12 +126,14 @@ def get_or_create_card(card_name):
         return existing[0]["id"]
 
     card = get_scryfall_card(card_name)
+
     time.sleep(0.08)
 
     if not card:
         return None
 
     inserted = supabase.table("cards").insert(card).execute().data
+
     return inserted[0]["id"]
 
 
@@ -88,6 +151,7 @@ def fetch_archidekt_card_names(deck_url):
 
     data = r.json()
     cards = data.get("cards", [])
+
     parsed = []
 
     for item in cards:
@@ -132,6 +196,7 @@ def fetch_moxfield_card_names(deck_url):
         return []
 
     data = r.json()
+
     parsed = []
 
     boards = {
@@ -218,6 +283,72 @@ def import_deck_cards(deck_id, deck_url):
         return 0
 
 
+def load_deck_dataframe(deck_id):
+    deck_cards = supabase.table("deck_cards").select("*").eq("deck_id", int(deck_id)).execute().data
+
+    if not deck_cards:
+        return pd.DataFrame()
+
+    cards = supabase.table("cards").select("*").execute().data
+
+    df_deck_cards = pd.DataFrame(deck_cards)
+    df_cards = pd.DataFrame(cards)
+
+    df = df_deck_cards.merge(
+        df_cards,
+        left_on="card_id",
+        right_on="id",
+        suffixes=("_deck", "_card")
+    )
+
+    return df
+
+
+def render_deck_cards(df, editable=False):
+    categories = sorted(df["category"].dropna().unique())
+
+    for category in categories:
+        category_cards = df[df["category"] == category]
+
+        st.markdown(f"## {category}")
+        st.caption(f"Qty: {category_cards['quantity'].sum()}")
+
+        cols = st.columns(5)
+
+        for i, (_, card) in enumerate(category_cards.iterrows()):
+            with cols[i % 5]:
+                if card.get("image_url"):
+                    st.image(card["image_url"], use_container_width=True)
+
+                st.markdown(f"**{card['quantity']}x {card['name']}**")
+                st.caption(card.get("type_line", ""))
+
+                if editable:
+                    col_add, col_remove = st.columns(2)
+
+                    with col_add:
+                        if st.button("➕", key=f"add_{card['id_deck']}"):
+                            supabase.table("deck_cards").update({
+                                "quantity": int(card["quantity"]) + 1
+                            }).eq("id", int(card["id_deck"])).execute()
+
+                            st.rerun()
+
+                    with col_remove:
+                        if st.button("➖", key=f"remove_{card['id_deck']}"):
+                            current_qty = int(card["quantity"])
+                            deck_card_id = int(card["id_deck"])
+
+                            if current_qty <= 1:
+                                supabase.table("deck_cards").delete().eq("id", deck_card_id).execute()
+                            else:
+                                supabase.table("deck_cards").update({
+                                    "quantity": current_qty - 1
+                                }).eq("id", deck_card_id).execute()
+
+                            st.rerun()
+
+
 # ---------- LOAD DATA ----------
 players = supabase.table("players").select("*").execute().data
 decks = supabase.table("Deck").select("*").execute().data
@@ -246,6 +377,7 @@ tabs = st.tabs([
     "Deck Stats"
 ])
 
+
 # ---------- ADD DECK ----------
 with tabs[0]:
     st.subheader("Add Deck")
@@ -261,7 +393,9 @@ with tabs[0]:
         st.info(f"Deck owner: {user}")
 
     if st.button("Add Deck"):
-        if deck_name.strip():
+        if not deck_name.strip():
+            st.warning("Please enter a deck name.")
+        else:
             inserted = supabase.table("Deck").insert({
                 "name": deck_name.strip(),
                 "owner": owner_id,
@@ -277,6 +411,7 @@ with tabs[0]:
                 st.success("Deck added.")
 
             st.rerun()
+
 
 # ---------- DECK LIST ----------
 with tabs[1]:
@@ -339,6 +474,7 @@ with tabs[1]:
                         st.warning("Deck deleted.")
                         st.rerun()
 
+
 # ---------- UPDATE DECK ----------
 with tabs[2]:
     st.subheader("Update Deck")
@@ -392,6 +528,7 @@ with tabs[2]:
                     st.success(f"Deck updated. Imported {imported} cards.")
                     st.rerun()
 
+
 # ---------- EDIT CARDS ----------
 with tabs[3]:
     st.subheader("Edit Deck Cards")
@@ -419,122 +556,101 @@ with tabs[3]:
 
             st.markdown("### Add Card")
 
-            col1, col2, col3 = st.columns([3, 1, 2])
+            search_name = st.text_input(
+                "Search card name",
+                placeholder="Example: Sol Ring",
+                key="card_name_search"
+            )
 
-            with col1:
-                new_card_name = st.text_input("Card name", key="manual_card_name")
+            if search_name.strip():
+                card_names = search_scryfall_card_names(search_name.strip())
 
-            with col2:
-                new_quantity = st.number_input(
-                    "Qty",
-                    min_value=1,
-                    value=1,
-                    step=1,
-                    key="manual_card_qty"
-                )
-
-            with col3:
-                new_category = st.text_input(
-                    "Category",
-                    value="Other",
-                    key="manual_card_category"
-                )
-
-            if st.button("Add Card"):
-                if not new_card_name.strip():
-                    st.warning("Write a card name.")
+                if not card_names:
+                    st.warning("No cards found.")
                 else:
-                    card_id = get_or_create_card(new_card_name.strip())
+                    selected_card_name = st.selectbox(
+                        "Choose card name",
+                        card_names,
+                        key="selected_card_name"
+                    )
 
-                    if not card_id:
-                        st.error("Card not found on Scryfall.")
+                    printings = search_scryfall_printings(selected_card_name)
+
+                    if not printings:
+                        st.warning("No variations found.")
                     else:
-                        existing = supabase.table("deck_cards").select("*") \
-                            .eq("deck_id", int(selected_deck_id)) \
-                            .eq("card_id", int(card_id)) \
-                            .eq("category", new_category.strip()) \
-                            .execute().data
+                        selected_printing_index = st.selectbox(
+                            "Choose card variation",
+                            range(len(printings)),
+                            format_func=lambda i: (
+                                f"{printings[i].get('set_name', 'Unknown set')} "
+                                f"#{printings[i].get('collector_number', '?')} "
+                                f"({printings[i].get('lang', 'en')})"
+                            ),
+                            key="selected_card_printing"
+                        )
 
-                        if existing:
-                            old_qty = int(existing[0]["quantity"])
-                            supabase.table("deck_cards").update({
-                                "quantity": old_qty + int(new_quantity)
-                            }).eq("id", existing[0]["id"]).execute()
-                        else:
-                            supabase.table("deck_cards").insert({
-                                "deck_id": int(selected_deck_id),
-                                "card_id": int(card_id),
-                                "quantity": int(new_quantity),
-                                "category": new_category.strip()
-                            }).execute()
+                        selected_card = printings[selected_printing_index]
 
-                        st.success("Card added.")
-                        st.rerun()
+                        image_url = get_card_image(selected_card)
+
+                        if image_url:
+                            st.image(image_url, width=260)
+
+                        col_qty, col_category = st.columns([1, 2])
+
+                        with col_qty:
+                            new_quantity = st.number_input(
+                                "Qty",
+                                min_value=1,
+                                value=1,
+                                step=1,
+                                key="manual_card_qty"
+                            )
+
+                        with col_category:
+                            new_category = st.text_input(
+                                "Category",
+                                value="Other",
+                                key="manual_card_category"
+                            )
+
+                        if st.button("Add Selected Card"):
+                            card_id = get_or_create_card_from_data(selected_card)
+
+                            existing = supabase.table("deck_cards").select("*") \
+                                .eq("deck_id", int(selected_deck_id)) \
+                                .eq("card_id", int(card_id)) \
+                                .eq("category", new_category.strip()) \
+                                .execute().data
+
+                            if existing:
+                                old_qty = int(existing[0]["quantity"])
+
+                                supabase.table("deck_cards").update({
+                                    "quantity": old_qty + int(new_quantity)
+                                }).eq("id", existing[0]["id"]).execute()
+                            else:
+                                supabase.table("deck_cards").insert({
+                                    "deck_id": int(selected_deck_id),
+                                    "card_id": int(card_id),
+                                    "quantity": int(new_quantity),
+                                    "category": new_category.strip()
+                                }).execute()
+
+                            st.success("Card added.")
+                            st.rerun()
 
             st.markdown("---")
             st.markdown("### Deck Preview")
 
-            deck_cards = supabase.table("deck_cards").select("*").eq(
-                "deck_id",
-                int(selected_deck_id)
-            ).execute().data
+            df = load_deck_dataframe(selected_deck_id)
 
-            if not deck_cards:
+            if df.empty:
                 st.info("This deck has no cards.")
             else:
-                df_deck_cards = pd.DataFrame(deck_cards)
+                render_deck_cards(df, editable=True)
 
-                cards = supabase.table("cards").select("*").execute().data
-                df_cards = pd.DataFrame(cards)
-
-                df = df_deck_cards.merge(
-                    df_cards,
-                    left_on="card_id",
-                    right_on="id",
-                    suffixes=("_deck", "_card")
-                )
-
-                categories = sorted(df["category"].dropna().unique())
-
-                for category in categories:
-                    category_cards = df[df["category"] == category]
-
-                    st.markdown(f"## {category}")
-                    st.caption(f"Qty: {category_cards['quantity'].sum()}")
-
-                    cols = st.columns(5)
-
-                    for i, (_, card) in enumerate(category_cards.iterrows()):
-                        with cols[i % 5]:
-                            if card.get("image_url"):
-                                st.image(card["image_url"], use_container_width=True)
-
-                            st.markdown(f"**{card['quantity']}x {card['name']}**")
-                            st.caption(card.get("type_line", ""))
-
-                            col_add, col_remove = st.columns(2)
-
-                            with col_add:
-                                if st.button("➕", key=f"add_{card['id_deck']}"):
-                                    supabase.table("deck_cards").update({
-                                        "quantity": int(card["quantity"]) + 1
-                                    }).eq("id", int(card["id_deck"])).execute()
-
-                                    st.rerun()
-
-                            with col_remove:
-                                if st.button("➖", key=f"remove_{card['id_deck']}"):
-                                    current_qty = int(card["quantity"])
-                                    deck_card_id = int(card["id_deck"])
-
-                                    if current_qty <= 1:
-                                        supabase.table("deck_cards").delete().eq("id", deck_card_id).execute()
-                                    else:
-                                        supabase.table("deck_cards").update({
-                                            "quantity": current_qty - 1
-                                        }).eq("id", deck_card_id).execute()
-
-                                    st.rerun()
 
 # ---------- DECK VIEW ----------
 with tabs[4]:
@@ -561,23 +677,11 @@ with tabs[4]:
                 key="deck_view_select"
             )
 
-            deck_cards = supabase.table("deck_cards").select("*").eq("deck_id", int(selected_deck_id)).execute().data
+            df = load_deck_dataframe(selected_deck_id)
 
-            if not deck_cards:
+            if df.empty:
                 st.warning("This deck has no imported cards.")
             else:
-                df_deck_cards = pd.DataFrame(deck_cards)
-
-                cards = supabase.table("cards").select("*").execute().data
-                df_cards = pd.DataFrame(cards)
-
-                df = df_deck_cards.merge(
-                    df_cards,
-                    left_on="card_id",
-                    right_on="id",
-                    suffixes=("_deck", "_card")
-                )
-
                 total_cards = int(df["quantity"].sum())
 
                 type_counts = {
@@ -613,23 +717,8 @@ with tabs[4]:
                 </div>
                 """, unsafe_allow_html=True)
 
-                categories = sorted(df["category"].dropna().unique())
+                render_deck_cards(df, editable=False)
 
-                for category in categories:
-                    category_cards = df[df["category"] == category]
-
-                    st.markdown(f"## {category}")
-                    st.caption(f"Qty: {category_cards['quantity'].sum()}")
-
-                    cols = st.columns(5)
-
-                    for i, (_, card) in enumerate(category_cards.iterrows()):
-                        with cols[i % 5]:
-                            if card.get("image_url"):
-                                st.image(card["image_url"], use_container_width=True)
-
-                            st.markdown(f"**{card['quantity']}x {card['name']}**")
-                            st.caption(card.get("type_line", ""))
 
 # ---------- DECK STATS ----------
 with tabs[5]:

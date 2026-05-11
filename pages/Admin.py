@@ -2,6 +2,12 @@ import streamlit as st
 from config import supabase, init_page, is_admin
 import pandas as pd
 
+init_page()
+
+if not is_admin():
+    st.error("Access denied.")
+    st.stop()
+
 st.set_page_config(
     page_title="Commander Tracker",
     page_icon="🎮",

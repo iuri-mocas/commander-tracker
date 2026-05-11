@@ -91,7 +91,7 @@ cards = [
 try:
     from config import is_admin
     if is_admin():
-        cards.append(("👑\nAdmin", "admin/Admin.py"))
+        cards.append(("👑\nAdmin", "pages/Admin.py"))
 except Exception:
     pass
 
