@@ -65,14 +65,12 @@ def get_or_create_card(card_name):
         return existing[0]["id"]
 
     card = get_scryfall_card(card_name)
-
     time.sleep(0.08)
 
     if not card:
         return None
 
     inserted = supabase.table("cards").insert(card).execute().data
-
     return inserted[0]["id"]
 
 
@@ -90,7 +88,6 @@ def fetch_archidekt_card_names(deck_url):
 
     data = r.json()
     cards = data.get("cards", [])
-
     parsed = []
 
     for item in cards:
@@ -120,6 +117,7 @@ def fetch_archidekt_card_names(deck_url):
             })
 
     return parsed
+
 
 def fetch_moxfield_card_names(deck_url):
     deck_id = get_moxfield_id_from_url(deck_url)
@@ -157,6 +155,7 @@ def fetch_moxfield_card_names(deck_url):
                 })
 
     return parsed
+
 
 def fetch_deck_card_names(deck_url):
     if "archidekt.com" in deck_url:
@@ -218,6 +217,7 @@ def import_deck_cards(deck_id, deck_url):
         st.error(f"Import failed: {e}")
         return 0
 
+
 # ---------- LOAD DATA ----------
 players = supabase.table("players").select("*").execute().data
 decks = supabase.table("Deck").select("*").execute().data
@@ -237,14 +237,21 @@ id_to_name = dict(zip(df_players["id"], df_players["name"]))
 
 current_user_id = int(name_to_id[user])
 
-tabs = st.tabs(["Add Deck", "Deck List", "Update Deck", "Edit Cards", "Deck View", "Deck Stats"])
+tabs = st.tabs([
+    "Add Deck",
+    "Deck List",
+    "Update Deck",
+    "Edit Cards",
+    "Deck View",
+    "Deck Stats"
+])
 
 # ---------- ADD DECK ----------
 with tabs[0]:
     st.subheader("Add Deck")
 
     deck_name = st.text_input("Deck name")
-    archidekt_url = st.text_input("Archidekt URL")
+    deck_url = st.text_input("Deck URL - Archidekt or Moxfield")
 
     if admin:
         owner_name = st.selectbox("Owner", df_players["name"].tolist())
@@ -258,13 +265,13 @@ with tabs[0]:
             inserted = supabase.table("Deck").insert({
                 "name": deck_name.strip(),
                 "owner": owner_id,
-                "archidekt_url": archidekt_url.strip()
+                "archidekt_url": deck_url.strip()
             }).execute().data
 
             new_deck_id = inserted[0]["id"]
 
-            if archidekt_url.strip():
-                imported = import_deck_cards(new_deck_id, archidekt_url.strip())
+            if deck_url.strip():
+                imported = import_deck_cards(new_deck_id, deck_url.strip())
                 st.success(f"Deck added. Imported {imported} cards.")
             else:
                 st.success("Deck added.")
@@ -297,7 +304,8 @@ with tabs[1]:
             selected_deck_id = st.selectbox(
                 "Select deck",
                 df_show["id"].tolist(),
-                format_func=lambda x: df_show[df_show["id"] == x]["name"].values[0]
+                format_func=lambda x: df_show[df_show["id"] == x]["name"].values[0],
+                key="deck_list_select"
             )
 
             selected_deck = df_show[df_show["id"] == selected_deck_id].iloc[0]
@@ -331,7 +339,6 @@ with tabs[1]:
                         st.warning("Deck deleted.")
                         st.rerun()
 
-
 # ---------- UPDATE DECK ----------
 with tabs[2]:
     st.subheader("Update Deck")
@@ -363,23 +370,23 @@ with tabs[2]:
 
             st.write(f"Current link: {selected_deck.get('archidekt_url', '')}")
 
-            new_archidekt_url = st.text_input(
-                "New Archidekt URL",
-                placeholder="https://archidekt.com/decks/...",
-                key="new_archidekt_url"
+            new_deck_url = st.text_input(
+                "New Deck URL - Archidekt or Moxfield",
+                placeholder="https://archidekt.com/decks/... or https://moxfield.com/decks/...",
+                key="new_deck_url"
             )
 
             if st.button("Update Deck"):
-                if not new_archidekt_url.strip():
-                    st.warning("Please enter a new Archidekt URL.")
+                if not new_deck_url.strip():
+                    st.warning("Please enter a new deck URL.")
                 else:
                     supabase.table("Deck").update({
-                        "archidekt_url": new_archidekt_url.strip()
+                        "archidekt_url": new_deck_url.strip()
                     }).eq("id", int(selected_deck_id)).execute()
 
                     imported = import_deck_cards(
                         int(selected_deck_id),
-                        new_archidekt_url.strip()
+                        new_deck_url.strip()
                     )
 
                     st.success(f"Deck updated. Imported {imported} cards.")
@@ -418,10 +425,20 @@ with tabs[3]:
                 new_card_name = st.text_input("Card name", key="manual_card_name")
 
             with col2:
-                new_quantity = st.number_input("Qty", min_value=1, value=1, step=1)
+                new_quantity = st.number_input(
+                    "Qty",
+                    min_value=1,
+                    value=1,
+                    step=1,
+                    key="manual_card_qty"
+                )
 
             with col3:
-                new_category = st.text_input("Category", value="Other")
+                new_category = st.text_input(
+                    "Category",
+                    value="Other",
+                    key="manual_card_category"
+                )
 
             if st.button("Add Card"):
                 if not new_card_name.strip():
@@ -439,7 +456,7 @@ with tabs[3]:
                             .execute().data
 
                         if existing:
-                            old_qty = existing[0]["quantity"]
+                            old_qty = int(existing[0]["quantity"])
                             supabase.table("deck_cards").update({
                                 "quantity": old_qty + int(new_quantity)
                             }).eq("id", existing[0]["id"]).execute()
@@ -455,9 +472,12 @@ with tabs[3]:
                         st.rerun()
 
             st.markdown("---")
-            st.markdown("### Remove Card")
+            st.markdown("### Deck Preview")
 
-            deck_cards = supabase.table("deck_cards").select("*").eq("deck_id", int(selected_deck_id)).execute().data
+            deck_cards = supabase.table("deck_cards").select("*").eq(
+                "deck_id",
+                int(selected_deck_id)
+            ).execute().data
 
             if not deck_cards:
                 st.info("This deck has no cards.")
@@ -473,39 +493,6 @@ with tabs[3]:
                     right_on="id",
                     suffixes=("_deck", "_card")
                 )
-
-                df["display"] = df["quantity"].astype(str) + "x " + df["name"] + " — " + df["category"]
-
-                selected_row = st.selectbox(
-                    "Select card to remove",
-                    df.index.tolist(),
-                    format_func=lambda x: df.loc[x, "display"]
-                )
-
-                remove_qty = st.number_input(
-                    "Quantity to remove",
-                    min_value=1,
-                    max_value=int(df.loc[selected_row, "quantity"]),
-                    value=1,
-                    step=1
-                )
-
-                if st.button("Remove Card"):
-                    deck_card_id = int(df.loc[selected_row, "id_deck"])
-                    current_qty = int(df.loc[selected_row, "quantity"])
-
-                    if remove_qty >= current_qty:
-                        supabase.table("deck_cards").delete().eq("id", deck_card_id).execute()
-                    else:
-                        supabase.table("deck_cards").update({
-                            "quantity": current_qty - int(remove_qty)
-                        }).eq("id", deck_card_id).execute()
-
-                    st.warning("Card removed.")
-                    st.rerun()
-
-                st.markdown("---")
-                st.markdown("### Deck Preview")
 
                 categories = sorted(df["category"].dropna().unique())
 
@@ -525,6 +512,29 @@ with tabs[3]:
                             st.markdown(f"**{card['quantity']}x {card['name']}**")
                             st.caption(card.get("type_line", ""))
 
+                            col_add, col_remove = st.columns(2)
+
+                            with col_add:
+                                if st.button("➕", key=f"add_{card['id_deck']}"):
+                                    supabase.table("deck_cards").update({
+                                        "quantity": int(card["quantity"]) + 1
+                                    }).eq("id", int(card["id_deck"])).execute()
+
+                                    st.rerun()
+
+                            with col_remove:
+                                if st.button("➖", key=f"remove_{card['id_deck']}"):
+                                    current_qty = int(card["quantity"])
+                                    deck_card_id = int(card["id_deck"])
+
+                                    if current_qty <= 1:
+                                        supabase.table("deck_cards").delete().eq("id", deck_card_id).execute()
+                                    else:
+                                        supabase.table("deck_cards").update({
+                                            "quantity": current_qty - 1
+                                        }).eq("id", deck_card_id).execute()
+
+                                    st.rerun()
 
 # ---------- DECK VIEW ----------
 with tabs[4]:
@@ -547,7 +557,8 @@ with tabs[4]:
             selected_deck_id = st.selectbox(
                 "Choose deck",
                 allowed_decks["id"].tolist(),
-                format_func=lambda x: allowed_decks[allowed_decks["id"] == x]["name"].values[0]
+                format_func=lambda x: allowed_decks[allowed_decks["id"] == x]["name"].values[0],
+                key="deck_view_select"
             )
 
             deck_cards = supabase.table("deck_cards").select("*").eq("deck_id", int(selected_deck_id)).execute().data
@@ -570,19 +581,13 @@ with tabs[4]:
                 total_cards = int(df["quantity"].sum())
 
                 type_counts = {
-                    "Creatures": int(
-                        df[df["type_line"].str.contains("Creature", case=False, na=False)]["quantity"].sum()),
-                    "Instants": int(
-                        df[df["type_line"].str.contains("Instant", case=False, na=False)]["quantity"].sum()),
-                    "Sorceries": int(
-                        df[df["type_line"].str.contains("Sorcery", case=False, na=False)]["quantity"].sum()),
-                    "Artifacts": int(
-                        df[df["type_line"].str.contains("Artifact", case=False, na=False)]["quantity"].sum()),
-                    "Enchantments": int(
-                        df[df["type_line"].str.contains("Enchantment", case=False, na=False)]["quantity"].sum()),
+                    "Creatures": int(df[df["type_line"].str.contains("Creature", case=False, na=False)]["quantity"].sum()),
+                    "Instants": int(df[df["type_line"].str.contains("Instant", case=False, na=False)]["quantity"].sum()),
+                    "Sorceries": int(df[df["type_line"].str.contains("Sorcery", case=False, na=False)]["quantity"].sum()),
+                    "Artifacts": int(df[df["type_line"].str.contains("Artifact", case=False, na=False)]["quantity"].sum()),
+                    "Enchantments": int(df[df["type_line"].str.contains("Enchantment", case=False, na=False)]["quantity"].sum()),
                     "Lands": int(df[df["type_line"].str.contains("Land", case=False, na=False)]["quantity"].sum()),
-                    "Planeswalkers": int(
-                        df[df["type_line"].str.contains("Planeswalker", case=False, na=False)]["quantity"].sum()),
+                    "Planeswalkers": int(df[df["type_line"].str.contains("Planeswalker", case=False, na=False)]["quantity"].sum()),
                 }
 
                 st.markdown(f"""
