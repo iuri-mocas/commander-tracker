@@ -186,7 +186,7 @@ id_to_name = dict(zip(df_players["id"], df_players["name"]))
 
 current_user_id = int(name_to_id[user])
 
-tabs = st.tabs(["Add Deck", "Deck List", "Deck View", "Deck Stats"])
+tabs = st.tabs(["Add Deck", "Deck List", "Update Deck", "Deck View", "Deck Stats"])
 
 # ---------- ADD DECK ----------
 with tabs[0]:
@@ -222,6 +222,7 @@ with tabs[0]:
 
 # ---------- DECK LIST ----------
 # ---------- DECK LIST ----------
+# ---------- DECK LIST ----------
 with tabs[1]:
     st.subheader("Deck List")
 
@@ -252,30 +253,6 @@ with tabs[1]:
 
             selected_deck = df_show[df_show["id"] == selected_deck_id].iloc[0]
 
-            st.markdown("### Update Archidekt Link")
-
-            new_archidekt_url = st.text_input(
-                "New Archidekt URL",
-                value=selected_deck.get("archidekt_url", ""),
-                key=f"update_url_{selected_deck_id}"
-            )
-
-            if st.button("Update Deck Link"):
-                if not new_archidekt_url.strip():
-                    st.warning("Please enter a valid Archidekt URL.")
-                else:
-                    supabase.table("Deck").update({
-                        "archidekt_url": new_archidekt_url.strip()
-                    }).eq("id", int(selected_deck_id)).execute()
-
-                    imported = import_deck_cards(
-                        int(selected_deck_id),
-                        new_archidekt_url.strip()
-                    )
-
-                    st.success(f"Deck link updated. Imported {imported} cards.")
-                    st.rerun()
-
             col1, col2 = st.columns(2)
 
             with col1:
@@ -305,8 +282,65 @@ with tabs[1]:
                         st.warning("Deck deleted.")
                         st.rerun()
 
-# ---------- DECK VIEW ----------
+
+#----------- Update -------------
+
+# ---------- UPDATE DECK ----------
 with tabs[2]:
+    st.subheader("Update Deck")
+
+    decks = supabase.table("Deck").select("*").execute().data
+    df_decks = pd.DataFrame(decks)
+
+    if df_decks.empty:
+        st.info("No decks yet.")
+    else:
+        df_decks["owner_name"] = df_decks["owner"].map(id_to_name)
+
+        if admin:
+            df_show = df_decks
+        else:
+            df_show = df_decks[df_decks["owner"] == current_user_id]
+
+        if df_show.empty:
+            st.info("You have no decks to update.")
+        else:
+            selected_deck_id = st.selectbox(
+                "Select deck to update",
+                df_show["id"].tolist(),
+                format_func=lambda x: df_show[df_show["id"] == x]["name"].values[0],
+                key="update_deck_select"
+            )
+
+            selected_deck = df_show[df_show["id"] == selected_deck_id].iloc[0]
+
+            st.write(f"Current link: {selected_deck.get('archidekt_url', '')}")
+
+            new_archidekt_url = st.text_input(
+                "New Archidekt URL",
+                placeholder="https://archidekt.com/decks/...",
+                key="new_archidekt_url"
+            )
+
+            if st.button("Update Deck"):
+                if not new_archidekt_url.strip():
+                    st.warning("Please enter a new Archidekt URL.")
+                else:
+                    supabase.table("Deck").update({
+                        "archidekt_url": new_archidekt_url.strip()
+                    }).eq("id", int(selected_deck_id)).execute()
+
+                    imported = import_deck_cards(
+                        int(selected_deck_id),
+                        new_archidekt_url.strip()
+                    )
+
+                    st.success(f"Deck updated. Imported {imported} cards.")
+                    st.rerun()
+
+
+# ---------- DECK VIEW ----------
+with tabs[3]:
     st.subheader("Deck View")
 
     decks = supabase.table("Deck").select("*").execute().data
@@ -406,7 +440,7 @@ with tabs[2]:
                             st.caption(card.get("type_line", ""))
 
 # ---------- DECK STATS ----------
-with tabs[3]:
+with tabs[4]:
     st.subheader("Deck Stats")
 
     decks = supabase.table("Deck").select("*").execute().data
