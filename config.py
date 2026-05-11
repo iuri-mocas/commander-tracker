@@ -64,10 +64,6 @@ def apply_theme():
         box-shadow: inset 0 0 30px rgba(255,140,60,0.15);
     }}
     
-    [data-testid="stSidebarNav"] {{
-        display: none;
-    }}
-    
     [data-testid="stSidebar"] * {{
         color: #F6E8C7 !important;
         font-family: Georgia, serif;
