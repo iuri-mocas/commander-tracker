@@ -18,6 +18,7 @@ if datetime.now() - st.session_state["last_ping"] > timedelta(days=6):
     except Exception:
         pass
 
+
 def normalize_user(name: str):
     known_names = {
         "iuri": "Iuri",
@@ -30,16 +31,19 @@ def normalize_user(name: str):
     clean = name.strip().lower()
     return known_names.get(clean, name.strip().title())
 
+
 st.markdown("""
 <style>
 [data-testid="stSidebar"] {
     display: none;
 }
+
 [data-testid="collapsedControl"] {
     display: none;
 }
 </style>
 """, unsafe_allow_html=True)
+
 
 if "user" not in st.session_state:
     st.markdown("""
@@ -84,11 +88,10 @@ cards = [
     ("🏆\nELO", "pages/Elo.py"),
 ]
 
-# Local admin only, controlled by config.py / secrets
 try:
     from config import is_admin
     if is_admin():
-        cards.append(("👑\nAdmin", "pages/Admin.py"))
+        cards.append(("👑\nAdmin", "admin/Admin.py"))
 except Exception:
     pass
 
