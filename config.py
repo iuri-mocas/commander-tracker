@@ -8,10 +8,21 @@ SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-
 def is_admin():
+    try:
+        host = st.context.headers.get("host", "")
+
+        # localhost admin
+        if host.startswith("localhost") or host.startswith("127.0.0.1"):
+            return True
+
+    except Exception:
+        pass
+
+    # deployed admin
     local_admin = st.secrets.get("LOCAL_ADMIN", False)
     admin_name = st.secrets.get("ADMIN_NAME", "")
+
     return local_admin and st.session_state.get("user") == admin_name
 
 
