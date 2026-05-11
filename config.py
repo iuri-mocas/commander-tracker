@@ -3,13 +3,21 @@ from supabase import create_client
 import base64
 import os
 
+SUPABASE_URL = st.secrets["SUPABASE_URL"]
+SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
+
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
 def is_admin():
-    return st.session_state.get("user") == st.secrets.get("ADMIN_NAME")
+    try:
+        host = st.context.headers.get("host", "")
+        return "localhost" in host or "127.0.0.1" in host
+    except Exception:
+        return False
 
 def check_login():
     if "user" not in st.session_state:
         st.switch_page("Main.py")
-
 
 def img_to_base64(path):
     if not os.path.exists(path):
