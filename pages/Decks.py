@@ -616,21 +616,17 @@ with tabs[3]:
                             )
 
                         if st.button("Add Selected Card"):
-                            card_id = get_or_create_card_from_data(selected_card)
 
-                            existing = supabase.table("deck_cards").select("*") \
-                                .eq("deck_id", int(selected_deck_id)) \
-                                .eq("card_id", int(card_id)) \
-                                .eq("category", new_category.strip()) \
-                                .execute().data
+                            selected_name = selected_card.get("name")
 
-                            if existing:
-                                old_qty = int(existing[0]["quantity"])
+                            # check if this card name already exists in this deck
+                            existing_cards = load_deck_dataframe(selected_deck_id)
 
-                                supabase.table("deck_cards").update({
-                                    "quantity": old_qty + int(new_quantity)
-                                }).eq("id", existing[0]["id"]).execute()
+                            if not existing_cards.empty and selected_name in existing_cards["name"].values:
+                                st.warning("This card is already in the deck.")
                             else:
+                                card_id = get_or_create_card_from_data(selected_card)
+
                                 supabase.table("deck_cards").insert({
                                     "deck_id": int(selected_deck_id),
                                     "card_id": int(card_id),
@@ -638,8 +634,8 @@ with tabs[3]:
                                     "category": new_category.strip()
                                 }).execute()
 
-                            st.success("Card added.")
-                            st.rerun()
+                                st.success("Card added.")
+                                st.rerun()
 
             st.markdown("---")
             st.markdown("### Deck Preview")
