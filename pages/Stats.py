@@ -35,8 +35,12 @@ if df_games.empty or df_gp.empty:
     st.info("No games yet.")
     st.stop()
 
-# Only games where logged player participated
-my_game_rows = df_gp[df_gp["player"] == player_id]
+# Games where logged player participated
+my_game_rows = df_gp[
+    (df_gp["player"] == player_id) |
+    (df_gp["player_name"] == user)
+]
+
 my_game_ids = my_game_rows["game_id"].tolist()
 my_games = df_games[df_games["id"].isin(my_game_ids)]
 
@@ -44,7 +48,11 @@ if my_games.empty:
     st.info("You have not played any games yet.")
     st.stop()
 
-wins = my_games[my_games["winner"] == player_id]
+wins = my_games[
+    (my_games["winner"] == player_id) |
+    (my_games["winner_name"] == user)
+]
+
 losses = len(my_games) - len(wins)
 
 col1, col2, col3 = st.columns(3)
@@ -59,17 +67,14 @@ with col3:
     winrate = round(len(wins) / len(my_games) * 100, 2)
     st.metric("Winrate", f"{winrate}%")
 
-st.subheader("Starting Player Stats")
+st.subheader("Win / Loss")
 
-started_games = my_games[my_games["starting_player"] == player_id]
-started_wins = started_games[started_games["winner"] == player_id]
+wl_df = pd.DataFrame({
+    "Result": ["Wins", "Losses"],
+    "Games": [len(wins), losses]
+})
 
-if len(started_games) > 0:
-    started_rate = round(len(started_wins) / len(started_games) * 100, 2)
-else:
-    started_rate = 0
-
-st.metric("Winrate When Starting", f"{started_rate}%")
+st.bar_chart(wl_df.set_index("Result"))
 
 st.subheader("My Deck Stats")
 
@@ -85,7 +90,10 @@ else:
 
         my_deck_games = df_gp[
             (df_gp["deck"].isin(my_decks["id"])) &
-            (df_gp["player"] == player_id)
+            (
+                (df_gp["player"] == player_id) |
+                (df_gp["player_name"] == user)
+            )
         ]
 
         if my_deck_games.empty:
@@ -99,7 +107,11 @@ else:
             )
 
             merged["deck_name"] = merged["deck"].map(deck_id_to_name)
-            merged["won"] = merged["winner"] == player_id
+
+            merged["won"] = (
+                (merged["winner"] == player_id) |
+                (merged["winner_name"] == user)
+            )
 
             stats = merged.groupby("deck_name").agg(
                 games_played=("game_id", "count"),
@@ -107,7 +119,9 @@ else:
             ).reset_index()
 
             stats["losses"] = stats["games_played"] - stats["wins"]
-            stats["winrate %"] = (stats["wins"] / stats["games_played"] * 100).round(2)
+            stats["winrate %"] = (
+                stats["wins"] / stats["games_played"] * 100
+            ).round(2)
 
             stats = stats.sort_values("winrate %", ascending=False)
 
