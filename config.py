@@ -121,6 +121,6 @@ def init_page():
 
         st.markdown("---")
 
-        if st.button("🚪 Logout", use_container_width=True):
+        if st.button("🚪 Logout", use_container_width=True, key="sidebar_logout_button"):
             st.session_state.clear()
             st.switch_page("Main.py")

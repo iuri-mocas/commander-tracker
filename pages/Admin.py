@@ -15,12 +15,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-init_page()
-
-if not is_admin():
-    st.error("Admin only.")
-    st.stop()
-
 st.title("👑 Admin Panel")
 
 tab_players, tab_games, tab_database, tab_danger = st.tabs([

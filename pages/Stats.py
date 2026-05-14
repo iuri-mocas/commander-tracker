@@ -1,6 +1,7 @@
 import streamlit as st
 from config import supabase, init_page
 import pandas as pd
+import matplotlib.pyplot as plt
 
 st.set_page_config(
     page_title="Commander Tracker",
@@ -42,7 +43,10 @@ my_game_rows = df_gp[
 ]
 
 my_game_ids = my_game_rows["game_id"].tolist()
-my_games = df_games[df_games["id"].isin(my_game_ids)]
+
+my_games = df_games[
+    df_games["id"].isin(my_game_ids)
+]
 
 if my_games.empty:
     st.info("You have not played any games yet.")
@@ -53,77 +57,131 @@ wins = my_games[
     (my_games["winner_name"] == user)
 ]
 
-losses = len(my_games) - len(wins)
+games_played = len(my_games)
+wins_count = len(wins)
 
-col1, col2, col3 = st.columns(3)
+winrate = round((wins_count / games_played) * 100, 2)
+
+# ---------- TOP METRICS ----------
+col1, col2 = st.columns(2)
 
 with col1:
-    st.metric("Games Played", len(my_games))
+    st.metric("Games Played", games_played)
 
 with col2:
-    st.metric("Wins", len(wins))
-
-with col3:
-    winrate = round(len(wins) / len(my_games) * 100, 2)
     st.metric("Winrate", f"{winrate}%")
 
-st.subheader("Win / Loss")
+# ---------- STATIC GENERAL CHART ----------
+st.subheader("🏆 Overall Winrate")
 
-wl_df = pd.DataFrame({
-    "Result": ["Wins", "Losses"],
-    "Games": [len(wins), losses]
-})
+fig1, ax1 = plt.subplots(figsize=(5, 4))
 
-st.bar_chart(wl_df.set_index("Result"))
+ax1.bar(["Winrate"], [winrate])
 
-st.subheader("My Deck Stats")
+ax1.set_ylim(0, 100)
+ax1.set_ylabel("Winrate %")
+ax1.set_title("Overall Performance")
 
-if df_decks.empty:
-    st.info("No decks yet.")
-else:
-    my_decks = df_decks[df_decks["owner"] == player_id]
+plt.tight_layout()
 
-    if my_decks.empty:
-        st.info("You do not own any decks yet.")
-    else:
-        deck_id_to_name = dict(zip(my_decks["id"], my_decks["name"]))
+st.pyplot(fig1, clear_figure=True)
 
-        my_deck_games = df_gp[
-            (df_gp["deck"].isin(my_decks["id"])) &
-            (
-                (df_gp["player"] == player_id) |
-                (df_gp["player_name"] == user)
-            )
-        ]
+st.write(f"🏆 {wins_count} wins in {games_played} games")
 
-        if my_deck_games.empty:
-            st.info("Your decks have not been used in games yet.")
-        else:
-            merged = my_deck_games.merge(
-                df_games,
-                left_on="game_id",
-                right_on="id",
-                suffixes=("_gp", "_game")
-            )
+# ---------- DECK STATS ----------
+st.subheader("🎴 My Deck Stats")
 
-            merged["deck_name"] = merged["deck"].map(deck_id_to_name)
+if df_decks.empty or df_gp.empty:
+    st.info("No deck stats available.")
+    st.stop()
 
-            merged["won"] = (
-                (merged["winner"] == player_id) |
-                (merged["winner_name"] == user)
-            )
+# normalize IDs safely
+df_decks["id_str"] = df_decks["id"].astype(str)
+df_gp["deck_str"] = df_gp["deck"].apply(lambda x: str(int(x)) if pd.notna(x) else None)
 
-            stats = merged.groupby("deck_name").agg(
-                games_played=("game_id", "count"),
-                wins=("won", "sum")
-            ).reset_index()
+deck_id_to_name = dict(zip(df_decks["id_str"], df_decks["name"]))
 
-            stats["losses"] = stats["games_played"] - stats["wins"]
-            stats["winrate %"] = (
-                stats["wins"] / stats["games_played"] * 100
-            ).round(2)
+# only rows where current user played AND has a deck
+my_deck_games = df_gp[
+    (
+        (df_gp["player"] == player_id) |
+        (df_gp["player_name"] == user)
+    ) &
+    (df_gp["deck"].notna())
+].copy()
 
-            stats = stats.sort_values("winrate %", ascending=False)
+if my_deck_games.empty:
+    st.info("You have not used any decks yet.")
+    st.stop()
 
-            st.dataframe(stats, use_container_width=True)
-            st.bar_chart(stats.set_index("deck_name")["winrate %"])
+my_deck_games["deck_name"] = my_deck_games["deck_str"].map(deck_id_to_name)
+
+# remove rows where deck id did not map
+my_deck_games = my_deck_games[my_deck_games["deck_name"].notna()]
+
+if my_deck_games.empty:
+    st.info("Your games have deck IDs, but they do not match the Deck table.")
+    st.stop()
+
+merged = my_deck_games.merge(
+    df_games,
+    left_on="game_id",
+    right_on="id",
+    suffixes=("_gp", "_game")
+)
+
+merged["won"] = (
+    (merged["winner"] == player_id) |
+    (merged["winner_name"] == user)
+)
+
+stats = merged.groupby("deck_name").agg(
+    games_played=("game_id", "count"),
+    wins=("won", "sum")
+).reset_index()
+
+stats["losses"] = stats["games_played"] - stats["wins"]
+stats["winrate %"] = (
+    stats["wins"] / stats["games_played"] * 100
+).round(2)
+
+stats = stats.sort_values("winrate %", ascending=False)
+
+st.dataframe(stats, use_container_width=True)
+
+st.subheader("📈 Deck Winrate")
+
+deck_options = stats["deck_name"].dropna().unique().tolist()
+
+if not deck_options:
+    st.info("No deck stats available.")
+    st.stop()
+
+selected_deck = st.selectbox(
+    "Choose deck",
+    deck_options,
+    key="stats_deck_select"
+)
+
+selected_stats = stats[stats["deck_name"] == selected_deck].iloc[0]
+
+deck_winrate = float(selected_stats["winrate %"])
+deck_wins = int(selected_stats["wins"])
+deck_losses = int(selected_stats["losses"])
+deck_games = int(selected_stats["games_played"])
+
+st.write(
+    f"🎴 **{selected_deck}** · "
+    f"{deck_wins} wins · "
+    f"{deck_losses} losses · "
+    f"{deck_games} games"
+)
+
+fig2, ax2 = plt.subplots(figsize=(4, 3))
+ax2.bar([selected_deck], [deck_winrate])
+ax2.set_ylim(0, 100)
+ax2.set_ylabel("Winrate %")
+ax2.set_title(f"{selected_deck} Winrate")
+
+plt.tight_layout()
+st.pyplot(fig2, clear_figure=True)
