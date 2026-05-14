@@ -74,7 +74,7 @@ with col2:
 # ---------- STATIC GENERAL CHART ----------
 st.subheader("🏆 Overall Winrate")
 
-fig1, ax1 = plt.subplots(figsize=(5, 4))
+fig1, ax1 = plt.subplots(figsize=(3, 2))
 
 ax1.bar(["Winrate"], [winrate])
 
@@ -177,7 +177,7 @@ st.write(
     f"{deck_games} games"
 )
 
-fig2, ax2 = plt.subplots(figsize=(4, 3))
+fig2, ax2 = plt.subplots(figsize=(3, 2))
 ax2.bar([selected_deck], [deck_winrate])
 ax2.set_ylim(0, 100)
 ax2.set_ylabel("Winrate %")
